@@ -166,7 +166,7 @@ nv.models.linePlusBarChart = function() {
         g.select('.nv-legendWrap')
             .datum(data.map(function(series) {
               series.originalKey = series.originalKey === undefined ? series.key : series.originalKey;
-              series.key = series.originalKey + (series.isBar ? ' (left axis)' : ' (right axis)');
+              series.key = series.originalKey;
               return series;
             }))
           .call(legend);

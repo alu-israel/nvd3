@@ -15,7 +15,7 @@ nv.models.line = function() {
     , getX = function(d) { return d.x } // accessor to get the x value from a data point
     , getY = function(d) { return d.y } // accessor to get the y value from a data point
     , defined = function(d,i) { return !isNaN(getY(d,i)) && getY(d,i) !== null } // allows a line to be not continuous when it is not defined
-    , isArea = function(d) { return d.area } // decides if a line is an area or just a line
+    , isArea = function(d) { return d.isArea } // decides if a line is an area or just a line
     , clipEdge = false // if true, masks lines within x and y scale
     , x //can be accessed via chart.xScale()
     , y //can be accessed via chart.yScale()
@@ -75,8 +75,6 @@ nv.models.line = function() {
       //------------------------------------------------------------
 
 
-
-
       scatter
         .width(availableWidth)
         .height(availableHeight)
@@ -99,8 +97,6 @@ nv.models.line = function() {
       g   .attr('clip-path', clipEdge ? 'url(#nv-edge-clip-' + scatter.id() + ')' : '');
       scatterWrap
           .attr('clip-path', clipEdge ? 'url(#nv-edge-clip-' + scatter.id() + ')' : '');
-
-
 
 
       var groups = wrap.select('.nv-groups').selectAll('.nv-group')
@@ -151,15 +147,14 @@ nv.models.line = function() {
                 .apply(this, [d.values])
           });
 
-
-
       var linePaths = groups.selectAll('path.nv-line')
           .data(function (d) { return [d] });
 
       linePaths.enter().append('path')
+          .attr('class', 'scatter')
           .attr('class', 'nv-line')
-          .style('stroke-width', function(d) { if(d.lineWidth) return d.lineWidth;})
-          .style('stroke-dasharray', function(d) { if(d.lineDash) return d.lineDash;})
+          .style('stroke-width', function(d) { if(d.width) return d.width;})
+          .style('stroke-dasharray', function(d) { if(d.dash) return d.dash;})
           .attr('d', function(d) {
             return d3.svg.line()
               .interpolate(interpolate)

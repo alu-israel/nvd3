@@ -5137,7 +5137,7 @@ nv.models.line = function() {
     , getX = function(d) { return d.x } // accessor to get the x value from a data point
     , getY = function(d) { return d.y } // accessor to get the y value from a data point
     , defined = function(d,i) { return !isNaN(getY(d,i)) && getY(d,i) !== null } // allows a line to be not continuous when it is not defined
-    , isArea = function(d) { return d.area } // decides if a line is an area or just a line
+    , isArea = function(d) { return d.isArea } // decides if a line is an area or just a line
     , clipEdge = false // if true, masks lines within x and y scale
     , x //can be accessed via chart.xScale()
     , y //can be accessed via chart.yScale()
@@ -5169,7 +5169,7 @@ nv.models.line = function() {
           container = d3.select(this);
 
       //------------------------------------------------------------
-      // Setup Scales
+      // Setup Scale//s
 
       x = scatter.xScale();
       y = scatter.yScale();
@@ -5197,8 +5197,6 @@ nv.models.line = function() {
       //------------------------------------------------------------
 
 
-
-
       scatter
         .width(availableWidth)
         .height(availableHeight)
@@ -5223,8 +5221,6 @@ nv.models.line = function() {
           .attr('clip-path', clipEdge ? 'url(#nv-edge-clip-' + scatter.id() + ')' : '');
 
 
-
-
       var groups = wrap.select('.nv-groups').selectAll('.nv-group')
           .data(function(d) { return d }, function(d) { return d.key });
       groups.enter().append('g')
@@ -5241,12 +5237,10 @@ nv.models.line = function() {
       groups
           .transition()
           .style('stroke-opacity', 1)
-          .style('fill-opacity', .5);
-
-
+          .style('fill-opacity', .5)
 
       var areaPaths = groups.selectAll('path.nv-area')
-          .data(function(d) { return isArea(d) ? [d] : [] }); // this is done differently than lines because I need to check if series is an area
+          .data(function(d) { return d.isArea ? [d] : [] }); // this is done differently than lines because I need to check if series is an area
       areaPaths.enter().append('path')
           .attr('class', 'nv-area')
           .attr('d', function(d) {
@@ -5275,31 +5269,33 @@ nv.models.line = function() {
                 .apply(this, [d.values])
           });
 
-
-
       var linePaths = groups.selectAll('path.nv-line')
-          .data(function(d) { return [d.values] });
+          .data(function (d) { return [d] });
+
       linePaths.enter().append('path')
+          .attr('class', 'scatter')
           .attr('class', 'nv-line')
-          .attr('d',
-            d3.svg.line()
+          .style('stroke-width', function(d) { if(d.width) return d.width;})
+          .style('stroke-dasharray', function(d) { if(d.dash) return d.dash;})
+          .attr('d', function(d) {
+            return d3.svg.line()
               .interpolate(interpolate)
               .defined(defined)
               .x(function(d,i) { return nv.utils.NaNtoZero(x0(getX(d,i))) })
               .y(function(d,i) { return nv.utils.NaNtoZero(y0(getY(d,i))) })
-          );
+              .apply(this, [d.values])
+          });
 
       linePaths
           .transition()
-          .attr('d',
-            d3.svg.line()
+          .attr('d', function(d) {
+            return d3.svg.line()
               .interpolate(interpolate)
               .defined(defined)
               .x(function(d,i) { return nv.utils.NaNtoZero(x(getX(d,i))) })
               .y(function(d,i) { return nv.utils.NaNtoZero(y(getY(d,i))) })
-          );
-
-
+              .apply(this, [d.values])
+          });
 
       //store old scales for use in transitions on update
       x0 = x.copy();
@@ -5927,7 +5923,7 @@ nv.models.linePlusBarChart = function() {
       var left = e.pos[0] + ( offsetElement.offsetLeft || 0 ),
           top = e.pos[1] + ( offsetElement.offsetTop || 0),
           x = xAxis.tickFormat()(lines.x()(e.point, e.pointIndex)),
-          y = (e.series.bar ? y1Axis : y2Axis).tickFormat()(lines.y()(e.point, e.pointIndex)),
+          y = (e.series.isBar ? y1Axis : y2Axis).tickFormat()(lines.y()(e.point, e.pointIndex)),
           content = tooltip(e.series.key, x, y, e, chart);
 
       nv.tooltip.show([left, top], content, e.value < 0 ? 'n' : 's', null, offsetElement);
@@ -5992,8 +5988,8 @@ nv.models.linePlusBarChart = function() {
       //------------------------------------------------------------
       // Setup Scales
 
-      var dataBars = data.filter(function(d) { return !d.disabled && d.bar });
-      var dataLines = data.filter(function(d) { return !d.bar }); // removed the !d.disabled clause here to fix Issue #240
+      var dataBars = data.filter(function(d) { return !d.disabled && d.isBar });
+      var dataLines = data.filter(function(d) { return !d.isBar }); // removed the !d.disabled clause here to fix Issue #240
 
       //x = xAxis.scale();
        x = dataLines.filter(function(d) { return !d.disabled; }).length && dataLines.filter(function(d) { return !d.disabled; })[0].values.length ? lines.xScale() : bars.xScale();
@@ -6029,7 +6025,7 @@ nv.models.linePlusBarChart = function() {
         g.select('.nv-legendWrap')
             .datum(data.map(function(series) {
               series.originalKey = series.originalKey === undefined ? series.key : series.originalKey;
-              series.key = series.originalKey + (series.bar ? ' (left axis)' : ' (right axis)');
+              series.key = series.originalKey;
               return series;
             }))
           .call(legend);
@@ -6059,14 +6055,14 @@ nv.models.linePlusBarChart = function() {
         .height(availableHeight)
         .color(data.map(function(d,i) {
           return d.color || color(d, i);
-        }).filter(function(d,i) { return !data[i].disabled && !data[i].bar }))
+        }).filter(function(d,i) { return !data[i].disabled && !data[i].isBar }))
 
       bars
         .width(availableWidth)
         .height(availableHeight)
         .color(data.map(function(d,i) {
           return d.color || color(d, i);
-        }).filter(function(d,i) { return !data[i].disabled && data[i].bar }))
+        }).filter(function(d,i) { return !data[i].disabled && data[i].isBar }))
 
 
 
